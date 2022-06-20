@@ -26,3 +26,16 @@ WHERE
 	AND primary_name = 'ark noca'
 	AND designer = '{"lol", "erto"}'
 	AND year_published = 2022;
+
+SELECT COUNT(*)
+FROM bgg_hotness_record;
+
+-- TIMESTAMP SEARCH
+SELECT record_time
+FROM bgg_hotness_record
+WHERE record_time > '2022-06-01';
+
+-- List search
+SELECT *
+FROM bgg_hotness_record
+WHERE 101 = ANY (hotness_list);

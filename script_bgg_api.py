@@ -1,6 +1,8 @@
 ##
 import requests
 import xml.etree.ElementTree as ET
+asasn = datetime.datetime.now()
+
 
 ################ API V2 ################
 ##
@@ -59,3 +61,44 @@ a = root_id[0].findall('poll')
 for i in a:
     for child in i:
         print(child.tag, child.attrib)
+
+## Boargame to explore
+bg_id = "169786" # Scythe
+## historical data
+r_id = requests.get(base_url_v1 + "boardgame/" + bg_id)
+r_hist = requests.get(base_url_v1 + "boardgame/" + bg_id + "?historical=1")
+root_id = ET.fromstring(r_id.content)
+root_hist = ET.fromstring(r_hist.content)
+
+s_id = []
+for child in root_id:
+    print(child.tag)
+
+tree = ET.ElementTree(root_id)
+tree.write('boardgame_' + bg_id + '.xml')
+tree = ET.ElementTree(root_hist)
+tree.write('boardgame_' + bg_id + '_history.xml')
+
+## Historical with specific dates
+r_id = requests.get("https://boardgamegeek.com/xmlapi/boardgame/" + bg_id + "?historical=1&from=2020-01-01&to=2020-12-31")
+root_id = ET.fromstring(r_id.content)
+
+for child in root_id[0]:
+    print(child.tag)
+
+tree = ET.ElementTree(root_id)
+tree.write('boardgame_' + bg_id + '_short_history.xml')
+
+# with stats
+r_id = requests.get("https://boardgamegeek.com/xmlapi/boardgame/" + bg_id + "?historical=1&stats=1")
+root_id = ET.fromstring(r_id.content)
+
+tree = ET.ElementTree(root_id)
+tree.write('boardgame_' + bg_id + '_with_stats.xml')
+
+# with only stats
+r_id = requests.get("https://boardgamegeek.com/xmlapi/boardgame/" + bg_id + "?stats=1&historical=1")
+root_id = ET.fromstring(r_id.content)
+
+tree = ET.ElementTree(root_id)
+tree.write('boardgame_' + bg_id + '_only_with_stats.xml')
