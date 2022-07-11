@@ -16,3 +16,14 @@ with psycopg2.connect("dbname=BGGDB user=bgg password=admin host=localhost") as 
         primary_name text,
         designer text[],
         year_published smallint);""")
+    # BOARDGAME INFO TABLE
+    with conn.cursor() as cur:
+        cur.execute("""CREATE TABLE IF NOT EXISTS boardgame_review
+        (id serial PRIMARY KEY,
+        review_time timestamp,
+        primary_name text,
+        bgg_id integer,
+        review_type text,
+        notes  text,
+        UNIQUE(review_time, bgg_id, review_type));""")
+        
