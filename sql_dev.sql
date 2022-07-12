@@ -15,6 +15,9 @@ FROM boardgame_info;
 SELECT *
 FROM boardgame_review;
 
+SELECT *
+FROM bgg_hotness_rank_record;
+
 INSERT INTO bgg_hotness_record(record_time, hotness_list)
 VALUES ('2022-05-24 17:23', '{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}');
 
@@ -89,4 +92,122 @@ GROUP BY designer;
 
 INSERT INTO boardgame_review(review_time, primary_name, bgg_id, review_type, notes)
 VALUES ('2022-06-03', 'Space station phoenix', '356414', 'podcast', '');
+
+INSERT INTO bgg_hotness_rank_record(record_time, boardgame_id, hotness_rank)
+VALUES ('1990-06-03', 87000, 1);
+
+
+DELETE FROM bgg_hotness_rank_record
+WHERE boardgame_id = 87000;
+
+SELECT *
+FROM boardgame_info
+WHERE id = 168;
+
+-- Check of good transfer of hotness list records to new format
+SELECT *
+FROM bgg_hotness_record
+WHERE record_time = '2022-07-02 09:59:42';
+
+SELECT *
+FROM bgg_hotness_rank_record
+WHERE boardgame_id = 153;
+
+SELECT *
+FROM bgg_hotness_record
+WHERE 153 = ANY(hotness_list);
+--> everything seems fine with the new format
+SELECT *
+FROM bgg_hotness_rank_record
+WHERE boardgame_id = 27;
+
+SELECT
+	boardgame_info.primary_name,
+	boardgame_info.id,
+	bgg_hotness_rank_record.record_time,
+	bgg_hotness_rank_record.boardgame_id,
+	bgg_hotness_rank_record.hotness_rank
+FROM bgg_hotness_rank_record
+INNER JOIN boardgame_info
+      ON boardgame_info.id = bgg_hotness_rank_record.boardgame_id
+GROUP BY boardgame_info.id
+LIMIT 100;
+
+
+-- total number of occurence for each boardgame in the hotness rank record table
+SELECT
+	bgg_hotness_rank_record.boardgame_id,
+	boardgame_info.primary_name,
+	COUNT(*) AS total
+FROM bgg_hotness_rank_record
+INNER JOIN boardgame_info
+      ON boardgame_info.id = bgg_hotness_rank_record.boardgame_id
+GROUP BY
+      boardgame_id, boardgame_info.primary_name
+ORDER BY
+      total DESC
+LIMIT 10;
+
+-- total number of occurent for each reviewed boardgame in the hotness rank record table
+SELECT
+	boardgame_info.primary_name,
+	COUNT(*) AS total_occurence
+FROM bgg_hotness_rank_record
+INNER JOIN boardgame_info
+      ON bgg_hotness_rank_record.boardgame_id = boardgame_info.id
+INNER JOIN boardgame_review
+      ON boardgame_info.bgg_id = boardgame_review.bgg_id
+GROUP BY
+      boardgame_info.bgg_id, boardgame_info.primary_name;
+
+
+
+SELECT
+	*
+FROM bgg_hotness_rank_record
+INNER JOIN boardgame_info
+      ON bgg_hotness_rank_record.boardgame_id = boardgame_info.id
+INNER JOIN boardgame_review
+      ON boardgame_info.bgg_id = boardgame_review.bgg_id;
+
+-- info a verifier
+-- burncycle : 117 occurences
+-- wonderlands war : 129 occurences
+SELECT *
+FROM bgg_hotness_rank_record
+WHERE boardgame_id = 27;
+
+-- total number of occurent for each reviewed boardgame in the hotness rank record table
+-- ONLY podcast reviews
+WITH podcast_review AS (
+     SELECT *
+     FROM boardgame_review
+     WHERE review_type = 'podcast')
+SELECT
+	boardgame_info.primary_name,
+	COUNT(*) AS total_occurence
+FROM bgg_hotness_rank_record
+INNER JOIN boardgame_info
+      ON bgg_hotness_rank_record.boardgame_id = boardgame_info.id
+INNER JOIN podcast_review
+      ON boardgame_info.bgg_id = podcast_review.bgg_id
+GROUP BY
+      boardgame_info.bgg_id, boardgame_info.primary_name;
+
+-- total number of occurent for each reviewed boardgame in the hotness rank record table
+-- ONLY video reviews
+WITH podcast_review AS (
+     SELECT *
+     FROM boardgame_review
+     WHERE review_type = 'video')
+SELECT
+	boardgame_info.primary_name,
+	COUNT(*) AS total_occurence
+FROM bgg_hotness_rank_record
+INNER JOIN boardgame_info
+      ON bgg_hotness_rank_record.boardgame_id = boardgame_info.id
+INNER JOIN podcast_review
+      ON boardgame_info.bgg_id = podcast_review.bgg_id
+GROUP BY
+      boardgame_info.bgg_id, boardgame_info.primary_name;
 

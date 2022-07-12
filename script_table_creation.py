@@ -26,4 +26,10 @@ with psycopg2.connect("dbname=BGGDB user=bgg password=admin host=localhost") as 
         review_type text,
         notes  text,
         UNIQUE(review_time, bgg_id, review_type));""")
-        
+    # NEW HOTNESS RECORD TABLE 
+    with conn.cursor() as cur:
+        cur.execute("""CREATE TABLE IF NOT EXISTS bgg_hotness_rank_record
+        (id serial PRIMARY KEY,
+        record_time timestamp,
+        boardgame_id integer,
+        hotness_rank integer);""")    

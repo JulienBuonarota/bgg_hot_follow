@@ -68,6 +68,7 @@ def save_hot_list(hot_list):
 
     with psycopg2.connect("dbname=BGGDB user=bgg password=admin host=localhost") as conn:
         with conn.cursor() as cur:
-            cur.execute(
-                """INSERT INTO bgg_hotness_record(record_time, hotness_list)
-                   VALUES (%s, %s);""", (timestamp, hot_list))
+            for count, bg_id in enumerate(hot_list):
+                cur.execute(
+                    """INSERT INTO bgg_hotness_rank_record(record_time, boardgame_id, hotness_rank)
+                    VALUES (%s, %s, %s);""", (timestamp, bg_id, count+1))
