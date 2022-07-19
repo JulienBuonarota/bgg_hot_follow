@@ -13,7 +13,7 @@ SELECT *
 FROM boardgame_info;
 
 SELECT *
-FROM boardgame_review;
+FROM boardgame_review;	
 
 SELECT *
 FROM bgg_hotness_rank_record;
@@ -100,9 +100,18 @@ VALUES ('1990-06-03', 87000, 1);
 DELETE FROM bgg_hotness_rank_record
 WHERE boardgame_id = 87000;
 
+
+DELETE FROM boardgame_info
+WHERE year_published = 90;
+
+
+-- SELECT *
+DELETE FROM boardgame_info
+WHERE primary_name = 'ark noca';
+
 SELECT *
-FROM boardgame_info
-WHERE id = 168;
+FROM bgg_hotness_rank_record
+WHERE boardgame_id = 1;
 
 -- Check of good transfer of hotness list records to new format
 SELECT *
@@ -210,4 +219,232 @@ INNER JOIN podcast_review
       ON boardgame_info.bgg_id = podcast_review.bgg_id
 GROUP BY
       boardgame_info.bgg_id, boardgame_info.primary_name;
+
+-- TEST of window function
+CREATE TABLE test_review
+(id serial PRIMARY KEY,
+review_time TIMESTAMP,
+bgg_id INTEGER);
+
+CREATE TABLE test_hotness_record
+(id serial PRIMARY KEY,
+record_time TIMESTAMP,
+bgg_id INTEGER,
+hotness_rank INTEGER);
+
+-- game 1 present before and after review
+-- game 2 present after review
+-- game 3 present before review
+-- game 4 not present
+INSERT INTO test_review(review_time, bgg_id)
+VALUES
+	('2020-07-01', 1),
+	('2020-07-10', 2);
+
+INSERT INTO test_review(review_time, bgg_id)
+VALUES
+	('2020-07-02', 3),
+	('2020-07-11', 4);
+
+INSERT INTO test_hotness_record(record_time, bgg_id, hotness_rank)
+VALUES
+	('2020-06-20', 1, 30),
+	('2020-06-25', 1, 30),
+	('2020-07-02', 1, 20),
+	('2020-07-10', 1, 1),
+	('2020-07-12', 2, 20),
+	('2020-06-12', 3, 20);
+
+SELECT *
+FROM test_review;
+
+SELECT *
+FROM test_hotness_record;
+
+SELECT *
+FROM test_hotness_record AS thr
+INNER JOIN test_review AS tr
+      ON thr.bgg_id = tr.bgg_id;
+
+SELECT *
+FROM test_hotness_record AS thr
+RIGHT JOIN test_review AS tr
+      ON thr.bgg_id = tr.bgg_id;
+
+
+
+
+SELECT
+	tr.bgg_id,
+	COUNT(*)
+		filter (WHERE tr.review_time < thr.record_time)
+	       over (partition BY tr.bgg_id)
+	       AS present_after_review,
+	COUNT(*)
+		filter (WHERE tr.review_time > thr.record_time)
+		over (partition BY tr.bgg_id)
+		AS present_before_review
+FROM test_hotness_record AS thr
+RIGHT JOIN test_review AS tr
+      ON thr.bgg_id = tr.bgg_id;
+
+
+
+SELECT t.bgg_id,
+       CASE 
+       	    WHEN t.present_before_review > 0 THEN 'True'
+	    ELSE 'False'
+       END AS present_before_review,
+       CASE 
+       	    WHEN t.present_after_review > 0 THEN 'True'
+	    ELSE 'False'
+       END AS present_after_review
+FROM 
+    (SELECT
+    	tr.bgg_id,
+    	COUNT(*) filter (WHERE tr.review_time < thr.record_time) over (partition BY tr.bgg_id) AS present_after_review,
+	COUNT(*) filter (WHERE tr.review_time > thr.record_time) over (partition BY tr.bgg_id) AS present_before_review
+    FROM test_hotness_record AS thr
+    RIGHT JOIN test_review AS tr
+          ON thr.bgg_id = tr.bgg_id) AS t
+GROUP BY t.bgg_id, t.present_after_review, t.present_before_review
+ORDER BY t.bgg_id ASC;
+
+explain analyze SELECT
+    	tr.bgg_id,
+    	COUNT(*) filter (WHERE tr.review_time < thr.record_time) over (partition BY tr.bgg_id) AS present_after_review,
+	COUNT(*) filter (WHERE tr.review_time > thr.record_time) over (partition BY tr.bgg_id) AS present_before_review
+    FROM test_hotness_record AS thr
+    INNER JOIN test_review AS tr
+          ON thr.bgg_id = tr.bgg_id;
+
+-- FLORENT
+SELECT
+	tr.bgg_id,
+	COUNT(*)
+FROM test_hotness_record AS thr
+INNER JOIN test_review AS tr
+      ON thr.bgg_id = tr.bgg_id
+GROUP BY tr.bgg_id
+HAVING tr.review_time < thr.record_time;
+
+
+SELECT tr.bgg_id ,thr.record_time
+FROM test_review AS tr
+INNER JOIN test_hotness_record AS thr
+      ON tr.bgg_id = thr.bgg_id
+WHERE tr.review_time > thr.record_time
+GROUP BY tr.bgg_id, thr.record_time;
+
+
+
+explain analyze SELECT
+	tr.bgg_id,
+	COUNT(thr.record_time)
+FROM test_review AS tr
+LEFT JOIN test_hotness_record AS thr
+     ON tr.bgg_id = thr.bgg_id
+     AND tr.review_time > thr.record_time
+GROUP BY tr.bgg_id;
+
+explain analyze SELECT
+	tr.bgg_id,
+	COUNT(DISTINCT thr.record_time) AS present_before_review,
+	COUNT(DISTINCT lthr.record_time) AS present_after_review
+FROM test_review AS tr
+LEFT JOIN test_hotness_record AS thr
+     ON tr.bgg_id = thr.bgg_id
+     AND tr.review_time > thr.record_time
+LEFT JOIN test_hotness_record AS lthr
+     ON tr.bgg_id = lthr.bgg_id
+     AND tr.review_time < lthr.record_time
+GROUP BY tr.bgg_id;
+
+-- Application to the real tables
+WITH
+podcast_review AS
+     (SELECT *
+     FROM boardgame_review
+     WHERE review_type = 'podcast'),
+t AS
+    (SELECT
+       	pr.bgg_id,
+	pr.primary_name,
+       	COUNT(*)
+	    FILTER (WHERE pr.review_time < bgghrr.record_time)
+	    OVER (PARTITION BY pr.bgg_id)
+	    AS present_after_review,
+    	COUNT(*)
+	    FILTER (WHERE pr.review_time > bgghrr.record_time)
+	    OVER (PARTITION BY pr.bgg_id)
+	    AS present_before_review
+    FROM bgg_hotness_rank_record AS bgghrr
+    INNER JOIN boardgame_info AS bi
+    	  ON bgghrr.boardgame_id = bi.id
+    INNER JOIN podcast_review AS pr --br
+          ON bi.bgg_id = pr.bgg_id)
+SELECT t.primary_name AS Boardgame,
+       CASE 
+       	    WHEN t.present_before_review > 0 THEN 'True'
+	    ELSE 'False'
+       END AS present_before_review,
+       CASE 
+       	    WHEN t.present_after_review > 0 THEN 'True'
+	    ELSE 'False'
+       END AS present_after_review
+FROM t
+GROUP BY t.present_after_review, t.present_before_review, t.primary_name;
+
+SELECT *
+FROM boardgame_review;
+
+WITH
+t AS
+    (SELECT
+       	br.bgg_id,
+	br.primary_name,
+	br.review_type,
+       	COUNT(*)
+	    FILTER (WHERE br.review_time < bgghrr.record_time)
+	    OVER (PARTITION BY br.bgg_id)
+	    AS present_after_review,
+    	COUNT(*)
+	    FILTER (WHERE br.review_time > bgghrr.record_time)
+	    OVER (PARTITION BY br.bgg_id)
+	    AS present_before_review
+    FROM bgg_hotness_rank_record AS bgghrr
+    INNER JOIN boardgame_info AS bi
+    	  ON bgghrr.boardgame_id = bi.id
+    RIGHT JOIN boardgame_review AS br
+          ON bi.bgg_id = br.bgg_id)
+SELECT
+       DISTINCT t.primary_name AS Boardgame,
+       CASE 
+       	    WHEN t.present_before_review > 0 THEN 'True'
+	    ELSE 'False'
+       END AS present_before_review,
+       CASE 
+       	    WHEN t.present_after_review > 0 THEN 'True'
+	    ELSE 'False'
+       END AS present_after_review,
+       t.review_type
+FROM t
+ORDER BY t.review_type;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
